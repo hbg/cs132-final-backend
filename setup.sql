@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS admin_accounts (
 
 CREATE TABLE IF NOT EXISTS products (
     id          INTEGER PRIMARY KEY AUTO_INCREMENT,
+    image_url   VARCHAR(255) NOT NULL,
     store_name  VARCHAR(32) NOT NULL,
     category    VARCHAR(255) NOT NULL,
     title       VARCHAR(64) NOT NULL,

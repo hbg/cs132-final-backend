@@ -15,6 +15,14 @@ const DEBUG = true;
 
 // Cookie expires in 15 minutes
 const COOKIE_EXP_TIME = 15 * 60 * 1000;
+const FAQ = {
+    brickexchange: {
+        "How long does delivery typically take?": "The expected delivery time is 2-3 weeks.",
+        "Where do the used LEGO sets come from?": "They come from exchanged LEGO sets from users.",
+        "What if there's a set I want that is out of stock?":
+            "You'll have to wait for it to either come back, or simply use another site such as BrickLink."
+    }
+}
 
 // for application/x-www-form-urlencoded
 app.use(express.urlencoded({ extended: true })); // built-in middleware
@@ -55,10 +63,35 @@ app.get('/products', async (req, res, next) => {
         let db;
         try {
             db = await getDB(); // connection error thrown in getDB();
-            let selectFields = "id, category, title, price, quantity";
+            let selectFields = "id, image_url, category, title, price, quantity";
             let qry = `SELECT ${selectFields} FROM products WHERE store_name=?;`;
             let result = await db.query(qry, [storeName.toLowerCase()]);
             res.json(result);
+        } catch (err) {
+            res.status(SERVER_ERR_CODE);
+            err.message = SERVER_ERROR;
+            next(err);
+        }
+        if (db) { // only defined if getDB() returned a successfully-connected object
+            db.end();
+        }
+    }
+});
+
+app.get('/product', async (req, res, next) => {
+    let productId = req.query.product_id;
+    if (!(productId)) {
+        res.status(CLIENT_ERR_CODE); // re-route to errorHandler, exiting this function
+        next(Error("Missing GET parameter: product_id."));
+    }
+    else {
+        let db;
+        try {
+            db = await getDB(); // connection error thrown in getDB();
+            let selectFields = "id, image_url, category, title, description, price, quantity";
+            let qry = `SELECT ${selectFields} FROM products WHERE id=?;`;
+            let result = await db.query(qry, [productId]);
+            res.json(result[0]);
         } catch (err) {
             res.status(SERVER_ERR_CODE);
             err.message = SERVER_ERROR;
@@ -81,7 +114,7 @@ app.get('/products/category', async (req, res, next) => {
         let db;
         try {
             db = await getDB(); // connection error thrown in getDB();
-            let selectFields = "id, category, title, price, quantity";
+            let selectFields = "id, image_url, category, title, price, quantity";
             let qry = `SELECT ${selectFields} FROM products WHERE store_name=? AND category=?;`;
             let result = await db.query(qry, [storeName.toLowerCase(), category]);
             res.json(result);
@@ -120,7 +153,7 @@ app.get('/categories', async (req, res, next) => {
     }
 });
 
-app.get('/admin/isloggedin', async (req, res, next) => {
+app.get('/admin/isloggedin', (req, res, next) => {
     let loggedIn = false;
     if (req.cookies["logged_in"]) {
         loggedIn = true;
@@ -130,9 +163,19 @@ app.get('/admin/isloggedin', async (req, res, next) => {
     });
 });
 
-app.get('/admin/logout', async (req, res) => {
+app.get('/admin/logout', (req, res) => {
     res.clearCookie("logged_in");
     res.redirect("/");
+});
+
+app.get('/faq', (req, res, next) => {
+    let storeName = req.query.store_name;
+    if (FAQ.hasOwnProperty(storeName.toLowerCase())) {
+        res.json(FAQ[storeName.toLowerCase()])
+    } else {
+        res.status(CLIENT_ERR_CODE); // re-route to errorHandler, exiting this function
+        next(Error("Invalid store name!"));
+    }
 });
 
 // POST endpoints
@@ -144,6 +187,7 @@ app.post('/admin/product/create', async (req, res, next) => {
     let productPrice = req.body.price;
     let productQty = req.body.quantity;
     let productCategory = req.body.category;
+    let productImageUrl = req.body.image_url;
 
     if (!(storeName && productDescription && productCategory &&
           productTitle && productPrice && productQty)) {
@@ -154,9 +198,9 @@ app.post('/admin/product/create', async (req, res, next) => {
     let db;
     try {
         db = await getDB(); // connection error thrown in getDB();
-        let insertFields = "(store_name, category, title, description, price, quantity)";
-        let qry = `INSERT INTO products ${insertFields} VALUES (?, ?, ?, ?, ?, ?);`;
-        await db.query(qry, [storeName, productCategory, productTitle,
+        let insertFields = "(store_name, image_url, category, title, description, price, quantity)";
+        let qry = `INSERT INTO products ${insertFields} VALUES (?, ?, ?, ?, ?, ?, ?);`;
+        await db.query(qry, [storeName, productImageUrl, productCategory, productTitle,
                              productDescription, productPrice, productQty]);
         res.json({"status_message": `Request to add ${productTitle} to ${storeName} ` +
                  `successfully processed!`});
@@ -177,12 +221,13 @@ app.post('/admin/product/edit', async (req, res, next) => {
     let productPrice = req.body.price;
     let productQty = req.body.quantity;
     let productCategory = req.body.category;
+    let productImageUrl = req.body.image_url;
 
-    if (!(productId && productDescription &&
+    if (!(productId && productDescription && productImageUrl &&
         productTitle && productPrice && productQty && productCategory)) {
         res.status(CLIENT_ERR_CODE); // re-route to errorHandler, exiting this function
         next(Error("Missing POST parameter: product id, title, description, " +
-                   "price, quantity, and/or category."));
+                   "price, quantity, image URL, and/or category."));
     }
     let db;
     try {
@@ -229,7 +274,7 @@ app.post('/admin/login', async (req, res, next) => {
     let password = req.body.password;
     res.cookie("logged_in", "true", { maxAge : COOKIE_EXP_TIME });
     res.json({
-        "success": true,
+        "success": false,
         "status_message": "Successfully logged into admin portal!"
     });
 });
