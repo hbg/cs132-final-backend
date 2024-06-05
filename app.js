@@ -20,7 +20,10 @@ const FAQ = {
         "How long does delivery typically take?": "The expected delivery time is 2-3 weeks.",
         "Where do the used LEGO sets come from?": "They come from exchanged LEGO sets from users.",
         "What if there's a set I want that is out of stock?":
-            "You'll have to wait for it to either come back, or simply use another site such as BrickLink."
+            "You'll have to wait for it to either come back, or simply use another site such as BrickLink.",
+        "How do I sell my set(s) on BrickExchange?": "Please use our contact form and we'll be in touch.",
+        "Why can't I log in?":
+            "Currently, the login feature is only open to administrators who add new products / update inventory."
     }
 }
 
@@ -203,7 +206,7 @@ app.post('/admin/product/create', async (req, res, next) => {
         await db.query(qry, [storeName, productImageUrl, productCategory, productTitle,
                              productDescription, productPrice, productQty]);
         res.json({"status_message": `Request to add ${productTitle} to ${storeName} ` +
-                 `successfully processed!`});
+                 `successfully processed!`, "success": true});
     } catch (err) {
         res.status(SERVER_ERR_CODE);
         err.message = SERVER_ERROR;
@@ -237,7 +240,7 @@ app.post('/admin/product/edit', async (req, res, next) => {
         await db.query(qry, [productTitle, productDescription, productPrice,
                              productQty, productCategory, productId]);
         res.json({"status_message": `Request to edit product ${productId} ` +
-                 `successfully processed!`});
+                 `successfully processed!`, "success": true});
     } catch (err) {
         res.status(SERVER_ERR_CODE);
         err.message = SERVER_ERROR;
@@ -261,7 +264,7 @@ app.post('/admin/product/delete', async (req, res, next) => {
         let qry = "DELETE FROM products WHERE id=?;";
         await db.query(qry, [productId]);
         res.json({"status_message": `Request to delete product ${productId} ` +
-                 `successfully processed!`});
+                 `successfully processed!`, "success": true});
     } catch (err) {
         res.status(SERVER_ERR_CODE);
         err.message = SERVER_ERROR;
@@ -274,7 +277,7 @@ app.post('/admin/login', async (req, res, next) => {
     let password = req.body.password;
     res.cookie("logged_in", "true", { maxAge : COOKIE_EXP_TIME });
     res.json({
-        "success": false,
+        "success": true,
         "status_message": "Successfully logged into admin portal!"
     });
 });
@@ -295,6 +298,30 @@ app.post('/contact', async (req, res, next) => {
                   "VALUES (?, ?, ?);";
         await db.query(qry, [storeName, email, message]);
         res.json({"status_message": "Successfully sent message!", "success": true});
+    } catch (err) {
+        res.status(SERVER_ERR_CODE);
+        err.message = SERVER_ERROR;
+        next(err);
+    }
+});
+
+app.post('/purchase', async (req, res, next) => {
+    let cart = JSON.parse(req.body.cart);
+
+    if (!(cart)) {
+        res.status(CLIENT_ERR_CODE);
+        next(Error("Missing POST parameter: cart."));
+    }
+    let db;
+    try {
+        db = await getDB(); // connection error thrown in getDB();
+        for (let productId in cart) {
+            let purchasedQty = cart[productId];
+            let qry = "UPDATE products SET quantity = GREATEST(0, quantity - ?)"
+                      + " WHERE id=?;";
+            await db.query(qry, [purchasedQty, productId]);
+        }
+        res.json({"status_message": "Successfully purchased items!", "success": true});
     } catch (err) {
         res.status(SERVER_ERR_CODE);
         err.message = SERVER_ERROR;
