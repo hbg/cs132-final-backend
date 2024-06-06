@@ -1,7 +1,7 @@
 import requests
 import random
 
-
+"""
 prices = {
     "6211-1": 400,
     "75055-1": 250,
@@ -18,7 +18,12 @@ prices = {
     "10214-1": 250,
     "10234-1": 375
 }
-
+"""
+prices = {
+    "71043-1": 300,
+    "4738-1": 60,
+    "10217-1": 330
+}
 def wrap_string(s):
     return f'"{s}"'
 
@@ -39,4 +44,4 @@ for set_number in prices:
     res_theme = res_theme.json()
     category = wrap_string(res_theme['name'])
     price = str(prices[set_number])
-    print("(" + ", ".join([STORE_NAME, image_url, category, title, description, price, quantity]) + ")")
+    print("(" + ", ".join([STORE_NAME, image_url, category, title, description, price, quantity]) + "),")

@@ -10,6 +10,8 @@
 
 CREATE DATABASE IF NOT EXISTS storedb;
 USE storedb;
+DROP TABLE IF EXISTS products;
+
 
 CREATE TABLE IF NOT EXISTS admin_accounts (
     email VARCHAR(255) NOT NULL,
@@ -47,4 +49,7 @@ INSERT INTO products (store_name, image_url, category, title, description, price
 ("brickexchange", "https://cdn.rebrickable.com/media/sets/76153-1/64692.jpg", "Avengers", "2020 Avengers Helicarrier", "A new-in-box and sealed 2020 Avengers Helicarrier.", 115, 1),
 ("brickexchange", "https://cdn.rebrickable.com/media/sets/10189-1/52584.jpg", "Creator Expert", "2008 Taj Mahal", "A new-in-box and sealed 2008 Taj Mahal.", 600, 5),
 ("brickexchange", "https://cdn.rebrickable.com/media/sets/10214-1/14563.jpg", "Creator Expert", "2010 Tower Bridge", "A new-in-box and sealed 2010 Tower Bridge.", 250, 3),
-("brickexchange", "https://cdn.rebrickable.com/media/sets/10234-1/15850.jpg", "Creator Expert", "2013 Sydney Opera House", "A new-in-box and sealed 2013 Sydney Opera House.", 375, 5);
+("brickexchange", "https://cdn.rebrickable.com/media/sets/10234-1/15850.jpg", "Creator Expert", "2013 Sydney Opera House", "A new-in-box and sealed 2013 Sydney Opera House.", 375, 5),
+("brickexchange", "https://cdn.rebrickable.com/media/sets/71043-1/15516.jpg", "Harry Potter", "2018 Hogwarts Castle", "A new-in-box and sealed 2018 Hogwarts Castle.", 300, 3),
+("brickexchange", "https://cdn.rebrickable.com/media/sets/4738-1/4220.jpg", "Harry Potter", "2010 Hagrid's Hut", "A new-in-box and sealed 2010 Hagrid's Hut.", 60, 5),
+("brickexchange", "https://cdn.rebrickable.com/media/sets/10217-1/48433.jpg", "Harry Potter", "2011 Diagon Alley", "A new-in-box and sealed 2011 Diagon Alley.", 330, 4);

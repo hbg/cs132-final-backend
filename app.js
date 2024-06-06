@@ -24,7 +24,9 @@ const FAQ = {
             "You'll have to wait for it to either come back or simply use another site, like BrickLink.",
         "How do I sell my set(s) on BrickExchange?": "Please use our contact form and we'll be in touch.",
         "Why can't I log in?":
-            "Currently, the login feature is only open to administrators who add new products / update inventory."
+            "Currently, the login feature is only open to administrators who add new products / update inventory.",
+        "Are you affiliated with LEGO?":
+            "No. This website is not actually a real storefront at the moment."
     }
 }
 
@@ -65,7 +67,7 @@ async function getDB() {
 
 app.get('/products', async (req, res, next) => {
     let storeName = req.query.store_name;
-    if (!(storeName)) {
+    if (!storeName) {
         res.status(CLIENT_ERR_CODE); // re-route to errorHandler, exiting this function
         next(Error("Missing GET parameter: store name."));
     }
@@ -90,7 +92,7 @@ app.get('/products', async (req, res, next) => {
 
 app.get('/product', async (req, res, next) => {
     let productId = req.query.product_id;
-    if (!(productId)) {
+    if (!productId) {
         res.status(CLIENT_ERR_CODE); // re-route to errorHandler, exiting this function
         next(Error("Missing GET parameter: product_id."));
     }
@@ -116,9 +118,9 @@ app.get('/product', async (req, res, next) => {
 app.get('/products/category', async (req, res, next) => {
     let storeName = req.query.store_name;
     let category = req.query.category;
-    if (!(storeName)) {
+    if (!(storeName && category)) {
         res.status(CLIENT_ERR_CODE); // re-route to errorHandler, exiting this function
-        next(Error("Missing GET parameter: store name."));
+        next(Error("Missing GET parameter: store name and category."));
     }
     else {
         let db;
