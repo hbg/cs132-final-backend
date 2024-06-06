@@ -1,3 +1,13 @@
+
+/*
+    Authors: Harris Beg and Maddie Ramos
+    Class: CS 132
+
+    The created tables within the database represent a register of created
+    admin accounts, a database of product inventories, and a database of
+    contact messages sent by users of the sites.
+*/
+
 CREATE DATABASE IF NOT EXISTS storedb;
 USE storedb;
 

@@ -5,6 +5,7 @@ const multer = require("multer");
 const mysql = require("promise-mysql");
 const config = require("./config.js");
 const cookieParser = require("cookie-parser");
+const expressSession = require('express-session')
 
 const app = express();
 
@@ -20,7 +21,7 @@ const FAQ = {
         "How long does delivery typically take?": "The expected delivery time is 2-3 weeks.",
         "Where do the used LEGO sets come from?": "They come from exchanged LEGO sets from users.",
         "What if there's a set I want that is out of stock?":
-            "You'll have to wait for it to either come back, or simply use another site such as BrickLink.",
+            "You'll have to wait for it to either come back or simply use another site, like BrickLink.",
         "How do I sell my set(s) on BrickExchange?": "Please use our contact form and we'll be in touch.",
         "Why can't I log in?":
             "Currently, the login feature is only open to administrators who add new products / update inventory."
@@ -35,6 +36,12 @@ app.use(express.json()); // built-in middleware
 app.use(multer().none()); // requires the "multer" module
 app.use(cookieParser()); // requires the "cookie parser"
 app.use(express.static("public"));
+app.use(expressSession({
+   secret: config.SESSION_KEY,
+   resave: false,
+   saveUninitialized: true,
+   cookie: {maxAge: COOKIE_EXP_TIME}
+}));
 
 /**
  * Establishes a database connection to the storedb and returns the database object.
@@ -158,7 +165,7 @@ app.get('/categories', async (req, res, next) => {
 
 app.get('/admin/isloggedin', (req, res, next) => {
     let loggedIn = false;
-    if (req.cookies["logged_in"]) {
+    if (req.session.loggedIn) {
         loggedIn = true;
     }
     res.json({
@@ -167,7 +174,7 @@ app.get('/admin/isloggedin', (req, res, next) => {
 });
 
 app.get('/admin/logout', (req, res) => {
-    res.clearCookie("logged_in");
+    req.session.loggedIn = false;
     res.redirect("/");
 });
 
@@ -198,12 +205,18 @@ app.post('/admin/product/create', async (req, res, next) => {
         next(Error("Missing POST parameter: store name, title, description, " +
                    "price, quantity, and/or category."));
     }
+
+    if (productQty < 0) {
+        res.status(CLIENT_ERR_CODE);
+        next(Error("Quantity of product should not be negative."));
+    }
+
     let db;
     try {
         db = await getDB(); // connection error thrown in getDB();
         let insertFields = "(store_name, image_url, category, title, description, price, quantity)";
         let qry = `INSERT INTO products ${insertFields} VALUES (?, ?, ?, ?, ?, ?, ?);`;
-        await db.query(qry, [storeName, productImageUrl, productCategory, productTitle,
+        await db.query(qry, [storeName.toLowerCase(), productImageUrl, productCategory, productTitle,
                              productDescription, productPrice, productQty]);
         res.json({"status_message": `Request to add ${productTitle} to ${storeName} ` +
                  `successfully processed!`, "success": true});
@@ -219,26 +232,34 @@ app.post('/admin/product/create', async (req, res, next) => {
 
 app.post('/admin/product/edit', async (req, res, next) => {
     let productId = req.body.product_id;
-    let productTitle = req.body.title;
-    let productDescription = req.body.description;
-    let productPrice = req.body.price;
-    let productQty = req.body.quantity;
-    let productCategory = req.body.category;
-    let productImageUrl = req.body.image_url;
 
-    if (!(productId && productDescription && productImageUrl &&
-        productTitle && productPrice && productQty && productCategory)) {
-        res.status(CLIENT_ERR_CODE); // re-route to errorHandler, exiting this function
-        next(Error("Missing POST parameter: product id, title, description, " +
-                   "price, quantity, image URL, and/or category."));
+    if (!productId) {
+        res.status(CLIENT_ERR_CODE);
+        next(Error("Missing POST parameter: product id."));
     }
+
+    if (req.body.quantity && req.body.quantity < 0) {
+        res.status(CLIENT_ERR_CODE);
+        next(Error("Quantity of product should not be negative."));
+    }
+
     let db;
     try {
         db = await getDB(); // connection error thrown in getDB();
-        let qry = "UPDATE products SET title=?, description=?, price=?, quantity=?, category=? " +
-                  "WHERE id=?;";
+        let selectFields = "id, image_url, category, title, description, price, quantity";
+        let productQry = `SELECT ${selectFields} FROM products WHERE id=?;`;
+        let product = (await db.query(productQry, [productId]))[0];
+        let productTitle = req.body.title ?? product["title"];
+        let productDescription = req.body.description ?? product["description"];
+        let productPrice = req.body.price ?? product["price"];
+        let productQty = req.body.quantity ?? product["quantity"];
+        let productCategory = req.body.category ?? product["category"];
+        let productImageUrl = req.body.image_url ?? product["image_url"];
+        let qry = "UPDATE products SET title=?, description=?, price=?, " +
+                  "quantity=?, category=?, image_url=? WHERE id=?;";
         await db.query(qry, [productTitle, productDescription, productPrice,
-                             productQty, productCategory, productId]);
+                             productQty, productCategory,
+                             productImageUrl, productId]);
         res.json({"status_message": `Request to edit product ${productId} ` +
                  `successfully processed!`, "success": true});
     } catch (err) {
@@ -275,7 +296,7 @@ app.post('/admin/product/delete', async (req, res, next) => {
 app.post('/admin/login', async (req, res, next) => {
     let email = req.body.email;
     let password = req.body.password;
-    res.cookie("logged_in", "true", { maxAge : COOKIE_EXP_TIME });
+    req.session.loggedIn = true;
     res.json({
         "success": true,
         "status_message": "Successfully logged into admin portal!"
