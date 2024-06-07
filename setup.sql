@@ -11,13 +11,16 @@
 CREATE DATABASE IF NOT EXISTS storedb;
 USE storedb;
 DROP TABLE IF EXISTS products;
+DROP TABLE IF EXISTS admin_accounts;
 
 
+-- Represents a user, uniquely identified by their email.
 CREATE TABLE IF NOT EXISTS admin_accounts (
     email VARCHAR(255) NOT NULL,
     password_hash VARCHAR(255) NOT NULL
 );
 
+-- Represents a product, uniquely identified by its ID.
 CREATE TABLE products (
     id          INTEGER PRIMARY KEY AUTO_INCREMENT,
     image_url   VARCHAR(255) NOT NULL,
@@ -26,14 +29,19 @@ CREATE TABLE products (
     title       VARCHAR(64) NOT NULL,
     description VARCHAR(255) NOT NULL,
     price       INT NOT NULL,
+    -- Number of the product that is currently in stock.
     quantity    INT NOT NULL
 );
 
+-- Represents contact messages.
 CREATE TABLE IF NOT EXISTS contact_messages (
     store_name  VARCHAR(32) NOT NULL,
     email       VARCHAR(255) NOT NULL,
     msg         TEXT NOT NULL
 );
+
+INSERT INTO admin_accounts (email, password_hash) VALUES
+("admin@test.edu", "$2b$10$v5k9r7Qc7CLV.gVIVIO3Ke02.GbJnZ3Nb2Rf9orqNnnqzA/OKn526");
 
 INSERT INTO products (store_name, image_url, category, title, description, price, quantity) VALUES
 ("brickexchange", "https://cdn.rebrickable.com/media/sets/6211-1/123997.jpg", "Star Wars", "2006 Imperial Star Destroyer", "A new-in-box and sealed 2006 Imperial Star Destroyer.", 400, 4),

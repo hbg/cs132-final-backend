@@ -1,4 +1,28 @@
 "use strict";
+
+/**
+ * @author Harris Beg, Maddie Ramos
+ * CS132 Spring 2022
+ * 
+ * Final Project - Storefront API
+ * 
+ * This API supports the following endpoints:
+ * GET /products
+ * GET /product
+ * GET /products/category
+ * GET /categories
+ * GET /admin/isloggedin
+ * GET /admin/logout
+ * GET /faq
+ * 
+ * POST /admin/product/create
+ * POST /admin/product/edit
+ * POST /admin/product/delete
+ * POST /admin/login
+ * POST /contact
+ * POST /purchase
+ */
+
 // 1. Load required modules
 const express = require("express");
 const multer = require("multer");
@@ -6,6 +30,7 @@ const mysql = require("promise-mysql");
 const config = require("./config.js");
 const cookieParser = require("cookie-parser");
 const expressSession = require('express-session')
+const bcrypt = require("bcrypt")  // used for password hashing
 
 const app = express();
 
@@ -16,6 +41,8 @@ const DEBUG = true;
 
 // Cookie expires in 15 minutes
 const COOKIE_EXP_TIME = 15 * 60 * 1000;
+
+// Frequently asked questions for FAQ page (Option 6)
 const FAQ = {
     brickexchange: {
         "How long does delivery typically take?": "The expected delivery time is 2-3 weeks.",
@@ -65,6 +92,12 @@ async function getDB() {
 
 // GET endpoints
 
+/**
+ * Returns a JSON array of the products for a given store.
+ * Required GET parameters: store_name
+ * Sends a 400 error code if the store_name parameter is missing.
+ * Sends a 500 error code if there is an issue with the database connection.
+ */
 app.get('/products', async (req, res, next) => {
     let storeName = req.query.store_name;
     if (!storeName) {
@@ -90,6 +123,12 @@ app.get('/products', async (req, res, next) => {
     }
 });
 
+/**
+ * Returns a JSON object holding product data for a given product_id.
+ * Required GET parameters: product_id
+ * Sends a 400 error code if the product_id parameter is missing.
+ * Sends a 500 error code if there is an issue with the database connection.
+ */
 app.get('/product', async (req, res, next) => {
     let productId = req.query.product_id;
     if (!productId) {
@@ -115,6 +154,12 @@ app.get('/product', async (req, res, next) => {
     }
 });
 
+/**
+ * Returns a JSON array of the products for a given store and category.
+ * Required GET parameters: store_name, category
+ * Sends a 400 error code if the store_name or category parameter is missing.
+ * Sends a 500 error code if there is an issue with the database connection.
+ */
 app.get('/products/category', async (req, res, next) => {
     let storeName = req.query.store_name;
     let category = req.query.category;
@@ -141,6 +186,12 @@ app.get('/products/category', async (req, res, next) => {
     }
 });
 
+/**
+ * Returns a JSON array of the categories for a given store.
+ * Required GET parameters: store_name
+ * Sends a 400 error code if the store_name parameter is missing.
+ * Sends a 500 error code if there is an issue with the database connection.
+ */
 app.get('/categories', async (req, res, next) => {
     let storeName = req.query.store_name;
     if (!(storeName)) {
@@ -165,6 +216,11 @@ app.get('/categories', async (req, res, next) => {
     }
 });
 
+/**
+ * Checks if the backend client has registered that the user has logged into 
+ * their account using the /admin/login route.
+ * Returns a JSON response holding a boolean value indicating login status.
+ */
 app.get('/admin/isloggedin', (req, res, next) => {
     let loggedIn = false;
     if (req.session.loggedIn) {
@@ -175,11 +231,19 @@ app.get('/admin/isloggedin', (req, res, next) => {
     });
 });
 
+/**
+ * Logs out an admin user.
+ */
 app.get('/admin/logout', (req, res) => {
     req.session.loggedIn = false;
     res.redirect("/");
 });
 
+/**
+ * Returns a JSON array of the frequently asked questions for a given store.
+ * Required GET parameters: store_name
+ * Sends a 400 error code if the store_name parameter is missing.
+ */
 app.get('/faq', (req, res, next) => {
     let storeName = req.query.store_name;
     if (FAQ.hasOwnProperty(storeName.toLowerCase())) {
@@ -191,7 +255,14 @@ app.get('/faq', (req, res, next) => {
 });
 
 // POST endpoints
-
+/**
+ * Creates a new product in the database.
+ * Required POST parameters: store_name, title, description, price, quantity, category
+ * Optional POST parameters: image_url
+ * Sends a 400 error code if any of the required parameters are missing, or if the
+ * request product quantity is negative.
+ * Sends a 500 error code if there is an issue with the database connection.
+ */
 app.post('/admin/product/create', async (req, res, next) => {
     let storeName = req.body.store_name
     let productTitle = req.body.title;
@@ -232,6 +303,14 @@ app.post('/admin/product/create', async (req, res, next) => {
     }
 });
 
+/**
+ * Edits a product in the database.
+ * Required POST parameters: product_id
+ * Optional POST parameters: title, description, price, quantity, category, image_url
+ * Sends a 400 error code if the product_id parameter is missing, or if the 
+ * request product quantity is negative.
+ * Sends a 500 error code if there is an issue with the database connection.
+ */
 app.post('/admin/product/edit', async (req, res, next) => {
     let productId = req.body.product_id;
 
@@ -274,6 +353,12 @@ app.post('/admin/product/edit', async (req, res, next) => {
     }
 });
 
+/**
+ * Deletes a product from the database.
+ * Required POST parameters: product_id
+ * Sends a 400 error code if the product_id parameter is missing.
+ * Sends a 500 error code if there is an issue with the database connection.
+ */
 app.post('/admin/product/delete', async (req, res, next) => {
     let productId = req.body.product_id;
 
@@ -295,16 +380,62 @@ app.post('/admin/product/delete', async (req, res, next) => {
     }
 });
 
+/**
+ * Admin login endpoint that facilitates logging into the admin portal.
+ * Required POST parameters: email, password
+ * Sends a 400 error code if the user does not exist or the password is invalid.
+ * Sends a 500 error code if there is an issue with the database connection.
+ * Sends a success message otherwise.
+ */
 app.post('/admin/login', async (req, res, next) => {
     let email = req.body.email;
     let password = req.body.password;
-    req.session.loggedIn = true;
-    res.json({
-        "success": true,
-        "status_message": "Successfully logged into admin portal!"
-    });
+
+    if (!(email && password)) {
+        res.status(CLIENT_ERR_CODE);
+        next(Error("Missing POST parameters: email and/or password."));
+    }
+
+    let db; 
+    try {
+        db = await getDB(); // connection error thrown in getDB();
+        let qry = "SELECT email, salt, password_hash FROM admin_accounts WHERE email=?;"
+
+        // verify password with helper function
+        let userInfo = (await db.query(qry, [email]))[0]; 
+        if (!userInfo) {
+            res.status(CLIENT_ERR_CODE);
+            next(Error("User does not exist."))
+        }
+
+        let isValid = await bcrypt.compare(password, userInfo.password_hash)
+        if (isValid) {
+            req.session.loggedIn = true;
+            res.json({
+                "success": true,
+                "status_message": "Successfully logged into admin portal!"
+            });
+        } else {
+            res.status(CLIENT_ERR_CODE);
+            next(Error("Invalid password."));
+        }
+    } catch (err) {
+        res.status(SERVER_ERR_CODE);
+        err.message = SERVER_ERROR;
+        next(err);
+    }
+    if (db) { // only defined if getDB() returned a successfully-connected object
+        db.end();
+    }
 });
 
+/**
+ * Contact endpoint that facilitates sending messages to the store owner.
+ * Required POST parameters: store_name, email, message
+ * Sends a 400 error code if any of the required parameters are missing.
+ * Sends a 500 error code if there is an issue with the database connection.
+ * Sends a success message otherwise.
+ */
 app.post('/contact', async (req, res, next) => {
     let storeName = req.body.store_name;
     let email = req.body.email;
@@ -328,6 +459,14 @@ app.post('/contact', async (req, res, next) => {
     }
 });
 
+/**
+ * Purchase endpoint that facilitates cart checkout and updates item
+ * stock accordingly.
+ * Required POST parameters: cart
+ * Sends a 400 error code if the cart parameter is missing.
+ * Sends a 500 error code if there is an issue with the database connection.
+ * Sends a success message otherwise.
+ */
 app.post('/purchase', async (req, res, next) => {
     let cart = JSON.parse(req.body.cart);
 
