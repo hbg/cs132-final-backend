@@ -386,6 +386,7 @@ app.post('/admin/product/delete', async (req, res, next) => {
  * Sends a 400 error code if the user does not exist or the password is invalid.
  * Sends a 500 error code if there is an issue with the database connection.
  * Sends a success message otherwise.
+ * NOTE: Test user is email: admin@test.edu, password: password
  */
 app.post('/admin/login', async (req, res, next) => {
     let email = req.body.email;
@@ -399,7 +400,7 @@ app.post('/admin/login', async (req, res, next) => {
     let db; 
     try {
         db = await getDB(); // connection error thrown in getDB();
-        let qry = "SELECT email, salt, password_hash FROM admin_accounts WHERE email=?;"
+        let qry = "SELECT email, password_hash FROM admin_accounts WHERE email=?;"
 
         // verify password with helper function
         let userInfo = (await db.query(qry, [email]))[0]; 
